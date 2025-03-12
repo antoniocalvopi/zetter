@@ -1,0 +1,28 @@
+# Django y dependencias principales
+django>=4.0,<5.0
+djangorestframework>=3.14,<4.0
+
+# WebSockets con Django Channels
+channels>=4.0,<5.0
+
+# PostgreSQL como backend
+psycopg2-binary>=2.9,<3.0
+
+# Autenticación JWT
+djangorestframework-simplejwt>=5.0,<6.0
+djangorestframework-simplejwt[blacklist]
+
+# CORS para manejar peticiones de diferentes orígenes
+django-cors-headers>=3.9,<4.0
+
+# Para facilitar la gestión de las migraciones de base de datos (si usas Docker o algo similar)
+django-environ>=0.9,<1.0
+
+# Para seguridad y depuración
+django-debug-toolbar>=3.2,<4.0
+
+# Otras herramientas de desarrollo y calidad de código
+black>=23.0,<24.0  # Formateador de código
+isort>=5.10,<6.0   # Organizador de imports
+flake8>=5.0,<6.0   # Linter para el código
+requests
