@@ -137,7 +137,6 @@ def verify_token(request):
     except Exception as e:
         return Response({"error": str(e)}, status=401)
 
-
 class AuthNoteProxyView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -215,8 +214,6 @@ class AuthNoteProxyView(APIView):
         
         else:
             return Response({"error": "Error al reenviar solicitud", "details": response.text}, status=response.status_code)
-
-
 
     def get(self, request, subpath):
         return self.forward_request(request, subpath)

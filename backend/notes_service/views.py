@@ -3,6 +3,10 @@ from .models import Note
 from .serializers import NoteSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.core.cache import cache
 
 class NoteListCreateView(generics.ListCreateAPIView):
     queryset = Note.objects.all()
@@ -19,9 +23,11 @@ class NoteListCreateView(generics.ListCreateAPIView):
         print(f"✅ Nota guardada con autor: {self.request.user}")
 
         related_notes = serializer.validated_data.get('relation', [])
-        note.related_notes.set(related_notes) 
-
-        print(f"📝 Relaciones de notas añadidas: {related_notes}")
+        if related_notes: 
+            note.related_notes.set(related_notes)
+            print(f"📝 Relaciones de notas añadidas: {related_notes}")
+        else:
+            print("⚠️ No hay relaciones de notas para asignar, continuando...")
 
 class NoteRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Note.objects.all()
@@ -47,11 +53,56 @@ class NoteRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         # Guardar la actualización de la nota
         print(f"➡️ Actualizando la nota con los nuevos datos")
-        updated_note = serializer.save()
+        
+        if not serializer.is_valid():
+            print(f"❌ Errores de validación: {serializer.errors}")
+            return
 
-        # Aquí manejamos las relaciones durante la actualización de la nota
-        related_notes = serializer.validated_data.get('relation', [])
-        updated_note.related_notes.set(related_notes)  # Actualizar las relaciones de notas
+        try:
+            updated_note = serializer.save()
+            print(f"✅ Nota actualizada correctamente: {updated_note.id}")
 
-        # Confirmación de relaciones actualizadas
-        print(f"📝 Relaciones actualizadas: {related_notes}")
+            # Manejar relaciones
+            related_notes = serializer.validated_data.get('relation', [])
+            if related_notes:
+                updated_note.related_notes.set(related_notes)
+                print(f"📝 Relaciones de notas añadidas: {related_notes}")
+            else:
+                print("⚠️ No hay relaciones de notas para asignar, continuando...")
+
+            print(f"📝 Relaciones actualizadas: {updated_note.related_notes.all()}")
+
+        except Exception as e:
+            print(f"❌ Error al actualizar la nota: {e}")
+
+    def perform_destroy(self, instance):
+        # Verificar que el usuario autenticado es el autor de la nota antes de eliminar
+        print(f"🛑 Intentando eliminar la nota con ID: {instance.id}")
+        
+        # Verificar que el autor de la nota es el usuario autenticado
+        if instance.author != self.request.user:
+            print(f"🚫 Permiso denegado: El usuario {self.request.user} no es el autor de la nota.")
+            raise PermissionDenied("No tienes permiso para eliminar esta nota.")
+        
+        # Eliminar la nota
+        print(f"✔️ Usuario autorizado para eliminar la nota con ID: {instance.id}")
+        instance.delete()
+        print(f"🗑️ Nota con ID {instance.id} eliminada.")
+        
+class DeleteAllNotesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            raise PermissionDenied("No tienes permiso para eliminar todas las notas.")
+
+        notes = Note.objects.filter(author=request.user)
+        print(f"Notas encontradas para eliminar: {notes.count()}")
+        
+        # Eliminar las notas
+        deleted_count, _ = notes.delete()
+        print(f"Notas eliminadas: {deleted_count}")
+        
+        if deleted_count == 0:
+            print("⚠️ No se eliminaron notas, revisa las relaciones o el autor.")
+        return Response({"message": "Todas las notas han sido eliminadas."}, status=status.HTTP_204_NO_CONTENT)
